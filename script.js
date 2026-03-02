@@ -121,7 +121,7 @@ function encodeSelectedToHex(bitsBoolArray) {
 		if (bitsBoolArray[i]) mask |= 1n << BigInt(i);
 	}
 	let hex = mask.toString(16).padStart(HEX_DIGITS, "0");
-	return "0x" + hex;
+	return "BLACKOUTx" + hex;
 }
 
 function countSelectedByMonth(month) {
@@ -235,13 +235,19 @@ function removeEntry(id) {
 }
 
 function normalizeHex(input) {
-	// accept: "0x..." or "..." (hex), ignore spaces, allow uppercase
+	// accept: "BLACKOUTx..."
+	console.log(input);
+
 	let s = String(input || "")
 		.trim()
 		.replace(/\s+/g, "");
-	if (s.startsWith("0X")) s = "0x" + s.slice(2);
-	if (!s.startsWith("0x")) s = "0x" + s;
-	return s;
+	if (s.startsWith("BLACKOUTx")) {
+		s = "0x" + s.slice(s.indexOf("x") + 1);
+		console.log(s);
+		return s;
+	} else {
+		return -1;
+	}
 }
 
 function parseMaskHex(hexStr) {
@@ -298,7 +304,7 @@ function renderEntries() {
         <div class="field grow">
           <label>Hex code</label>
           <div class="hex-row">
-            <input class="hex-input mono" type="text" value="${escapeHtml(entry.hex)}" placeholder="0x0000000000" />
+            <input class="hex-input mono" type="text" value="${escapeHtml(entry.hex)}" placeholder="BLACKOUTx0000000000" />
             <button class="btn" type="button" data-action="paste">Paste</button>
             <div class="validity" aria-label="validity">${entry.valid ? "✓" : entry.hex.trim() ? "✗" : ""}</div>
           </div>
