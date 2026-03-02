@@ -236,14 +236,11 @@ function removeEntry(id) {
 
 function normalizeHex(input) {
 	// accept: "BLACKOUTx..."
-	console.log(input);
-
 	let s = String(input || "")
 		.trim()
 		.replace(/\s+/g, "");
 	if (s.startsWith("BLACKOUTx")) {
 		s = "0x" + s.slice(s.indexOf("x") + 1);
-		console.log(s);
 		return s;
 	} else {
 		return -1;
