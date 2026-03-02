@@ -267,18 +267,6 @@ function parseMaskHex(hexStr) {
 	}
 }
 
-// async function pasteFromClipboardInto(id) {
-// 	try {
-// 		const text = await navigator.clipboard.readText();
-// 		const input = document.querySelector(`[data-entry-id="${id}"] .hex-input`);
-// 		if (!input) return;
-// 		input.value = text;
-// 		input.dispatchEvent(new Event("input", { bubbles: true }));
-// 	} catch {
-// 		toast("Clipboard paste failed.", "err");
-// 	}
-// }
-
 function pasteFromClipboardInto(id) {
 	const input = document.querySelector(`[data-entry-id="${id}"] .hex-input`);
 
