@@ -10,15 +10,71 @@
 	<body>
 		<div class="wrap">
 			<header>
-				<h1>Date Encoder</h1>
-				<p class="sub">
-					Tap dates to toggle. The encoding is a hex value representing a 39-bit
-					selection mask (fixed date order, earliest to latest).
-				</p>
+				<div class="topbar">
+					<div>
+						<h1>Date Encoder</h1>
+						<p class="sub">
+							Blackout: tap dates → get a hex mask. Summary: paste multiple
+							masks → see collision hot-spots.
+						</p>
+					</div>
+
+					<div class="mode-toggle" role="group" aria-label="Mode">
+						<button
+							id="mode-blackout"
+							class="seg-btn"
+							type="button"
+							aria-pressed="true"
+						>
+							Blackout
+						</button>
+						<button
+							id="mode-summary"
+							class="seg-btn"
+							type="button"
+							aria-pressed="false"
+						>
+							Summary
+						</button>
+					</div>
+				</div>
 			</header>
 
+			<!-- SUMMARY MODE PANEL -->
+			<section
+				id="summary-panel"
+				class="panel hidden"
+				aria-label="Summary mode inputs"
+			>
+				<div class="summary-head">
+					<div class="summary-row">
+						<div class="field">
+							<label for="max-allowed">Maximum Allowed</label>
+							<select id="max-allowed"></select>
+						</div>
+
+						<div class="field grow">
+							<label>&nbsp;</label>
+							<button id="add-entry" class="btn" type="button">
+								Add person
+							</button>
+						</div>
+					</div>
+
+					<div class="hint" style="margin-top: 6px">
+						Add one mask per person. Valid codes update collisions immediately.
+					</div>
+				</div>
+
+				<div id="entries" class="entries" aria-label="Hex code entries"></div>
+			</section>
+
 			<div class="grid">
-				<section class="panel months" aria-label="Date selection">
+				<!-- DATES -->
+				<section
+					class="panel months"
+					aria-label="Date selection / collision grid"
+				>
 					<div class="month" id="month-apr">
 						<h2>
 							<span>April</span>
@@ -44,8 +100,9 @@
 					</div>
 				</section>
 
+				<!-- RIGHT PANEL (Blackout encoding output) -->
 				<aside class="side" aria-label="Encoding output">
-					<section class="panel">
+					<section class="panel" id="blackout-panel">
 						<div class="actions">
 							<button class="btn" id="select-all" type="button">
 								Select all
@@ -63,7 +120,7 @@
 									class="mono"
 									type="text"
 									readonly
-									value="0x0"
+									value="0x0000000000"
 								/>
 								<button class="btn primary" id="copy" type="button">
 									Copy
@@ -71,9 +128,8 @@
 							</div>
 
 							<div class="hint">
-								Format: <span class="mono">0x</span> + hex for the 39-bit mask.
-								Bit 0 corresponds to the first date in order (Apr 2), bit 38 to
-								the last (Jun 27).
+								Format: <span class="mono">0x</span> + 10 hex digits (39-bit
+								mask). Bit 0 = Apr 2, bit 38 = Jun 27.
 							</div>
 
 							<div class="hint">

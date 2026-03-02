@@ -16,7 +16,7 @@ const DATES = [
 	{ id: "apr-25", label: "25", month: "April", display: "Apr 25" },
 	{ id: "apr-30", label: "30", month: "April", display: "Apr 30" },
 
-	// May (14) — note: May has 14 dates in your list
+	// May (14)
 	{ id: "may-1", label: "1", month: "May", display: "May 1" },
 	{ id: "may-2", label: "2", month: "May", display: "May 2" },
 	{ id: "may-7", label: "7", month: "May", display: "May 7" },
@@ -32,7 +32,7 @@ const DATES = [
 	{ id: "may-29", label: "29", month: "May", display: "May 29" },
 	{ id: "may-30", label: "30", month: "May", display: "May 30" },
 
-	// June (12) — note: June has 12 dates in your list
+	// June (12)
 	{ id: "jun-4", label: "4", month: "June", display: "Jun 4" },
 	{ id: "jun-5", label: "5", month: "June", display: "Jun 5" },
 	{ id: "jun-6", label: "6", month: "June", display: "Jun 6" },
@@ -47,11 +47,17 @@ const DATES = [
 	{ id: "jun-27", label: "27", month: "June", display: "Jun 27" },
 ];
 
-// NOTE:
-// Your original spec says 39 dates total. The list you provided is:
-// April 13 + May 14 + June 12 = 39. ✅
+const TOTAL_BITS = DATES.length; // 39
+const HEX_DIGITS = 10; // ceil(39/4) = 10
 
-const selected = new Array(DATES.length).fill(false);
+// Blackout state (direct toggles)
+const selected = new Array(TOTAL_BITS).fill(false);
+
+// Summary state (list of {label, hex, valid, maskBigInt})
+let entriesState = [];
+
+// Mode
+let mode = "blackout"; // "blackout" | "summary"
 
 const el = (id) => document.getElementById(id);
 
@@ -65,88 +71,336 @@ function toast(msg, kind = "ok") {
 	}, 1800);
 }
 
-function makeButton(index) {
+// ---------- Rendering the date grid ----------
+function makeDateButton(index) {
 	const d = DATES[index];
 	const btn = document.createElement("button");
 	btn.type = "button";
 	btn.className = "date-btn";
 	btn.setAttribute("data-index", String(index));
-	btn.setAttribute("aria-pressed", "false");
 	btn.setAttribute("title", d.display);
+
+	// In blackout, it's interactive; in summary, it's display-only
+	btn.setAttribute("aria-pressed", "false");
 	btn.textContent = d.label;
 
 	btn.addEventListener("click", () => {
+		if (mode !== "blackout") return;
 		selected[index] = !selected[index];
 		btn.setAttribute("aria-pressed", selected[index] ? "true" : "false");
-		updateEncoding();
+		updateBlackoutEncoding();
 	});
 
 	return btn;
 }
 
-function render() {
+function renderDates() {
 	const apr = el("dates-apr");
 	const may = el("dates-may");
 	const jun = el("dates-jun");
 
-	for (let i = 0; i < DATES.length; i++) {
-		const btn = makeButton(i);
+	apr.innerHTML = "";
+	may.innerHTML = "";
+	jun.innerHTML = "";
+
+	for (let i = 0; i < TOTAL_BITS; i++) {
+		const btn = makeDateButton(i);
 		if (DATES[i].month === "April") apr.appendChild(btn);
 		else if (DATES[i].month === "May") may.appendChild(btn);
 		else jun.appendChild(btn);
 	}
 
-	updateEncoding();
+	// Ensure correct visuals for current mode
+	syncDateVisualState();
 }
 
-// Encode selected[] into hex for a 39-bit integer mask.
-// bit i = 1 if date i selected
-function encodeToHex() {
+// ---------- Blackout encoding ----------
+function encodeSelectedToHex(bitsBoolArray) {
 	let mask = 0n;
-	for (let i = 0; i < selected.length; i++) {
-		if (selected[i]) mask |= 1n << BigInt(i);
+	for (let i = 0; i < bitsBoolArray.length; i++) {
+		if (bitsBoolArray[i]) mask |= 1n << BigInt(i);
 	}
-	// 39 bits -> ceil(39/4)=10 hex digits
-	const hexDigits = 10;
-	let hex = mask.toString(16).padStart(hexDigits, "0");
+	let hex = mask.toString(16).padStart(HEX_DIGITS, "0");
 	return "0x" + hex;
 }
 
-function countByMonth(month) {
+function countSelectedByMonth(month) {
 	let c = 0;
-	for (let i = 0; i < DATES.length; i++) {
+	for (let i = 0; i < TOTAL_BITS; i++) {
 		if (DATES[i].month === month && selected[i]) c++;
 	}
 	return c;
 }
 
-function updateEncoding() {
-	el("encoding").value = encodeToHex();
+function updateBlackoutEncoding() {
+	el("encoding").value = encodeSelectedToHex(selected);
 
 	const total = selected.reduce((a, b) => a + (b ? 1 : 0), 0);
 	el("selected-count").textContent = String(total);
 
-	el("count-apr").textContent = String(countByMonth("April"));
-	el("count-may").textContent = String(countByMonth("May"));
-	el("count-jun").textContent = String(countByMonth("June"));
+	el("count-apr").textContent = String(countSelectedByMonth("April"));
+	el("count-may").textContent = String(countSelectedByMonth("May"));
+	el("count-jun").textContent = String(countSelectedByMonth("June"));
 }
 
-function setAll(value) {
+// ---------- Mode switching ----------
+function setMode(nextMode) {
+	mode = nextMode;
+
+	// Toggle buttons
+	el("mode-blackout").setAttribute(
+		"aria-pressed",
+		mode === "blackout" ? "true" : "false",
+	);
+	el("mode-summary").setAttribute(
+		"aria-pressed",
+		mode === "summary" ? "true" : "false",
+	);
+
+	// Show/hide panels
+	el("summary-panel").classList.toggle("hidden", mode !== "summary");
+	el("blackout-panel").classList.toggle("hidden", mode !== "blackout");
+
+	// When entering summary, we should recompute highlights immediately
+	syncDateVisualState();
+	if (mode === "summary") recomputeSummaryCollisions();
+	if (mode === "blackout") updateBlackoutEncoding();
+}
+
+function syncDateVisualState() {
 	const buttons = document.querySelectorAll(".date-btn");
-	for (let i = 0; i < selected.length; i++) {
-		selected[i] = value;
-		buttons[i].setAttribute("aria-pressed", value ? "true" : "false");
+	for (let i = 0; i < buttons.length; i++) {
+		const b = buttons[i];
+
+		// disable pointer interaction in summary
+		b.classList.toggle("disabled", mode === "summary");
+
+		// clear summary red state always, will be re-applied by summary logic
+		b.classList.remove("hot");
+		b.removeAttribute("data-collisions");
+
+		// keep blackout selection visuals
+		if (mode === "blackout") {
+			b.setAttribute("aria-pressed", selected[i] ? "true" : "false");
+		} else {
+			// summary mode: dates are not "pressed"
+			b.setAttribute("aria-pressed", "false");
+		}
 	}
-	updateEncoding();
+
+	// In summary mode, month counts should show collisions > max? (spec says same arrangement; doesn’t specify counts)
+	// We'll keep the "0 selected" counts, since direct selection is disabled.
+	if (mode === "summary") {
+		el("count-apr").textContent = "0";
+		el("count-may").textContent = "0";
+		el("count-jun").textContent = "0";
+	}
 }
 
+// ---------- Summary mode UI ----------
+function fillMaxAllowed() {
+	const sel = el("max-allowed");
+	sel.innerHTML = "";
+	for (let i = 0; i <= 10; i++) {
+		const opt = document.createElement("option");
+		opt.value = String(i);
+		opt.textContent = String(i);
+		if (i === 0) opt.selected = true;
+		sel.appendChild(opt);
+	}
+	sel.addEventListener("change", recomputeSummaryCollisions);
+}
+
+function addEntry(initialLabel = "", initialHex = "") {
+	const entry = {
+		id: crypto.randomUUID
+			? crypto.randomUUID()
+			: String(Date.now()) + Math.random(),
+		label: initialLabel,
+		hex: initialHex,
+		valid: false,
+		mask: null, // BigInt
+	};
+	entriesState.push(entry);
+	renderEntries();
+	recomputeSummaryCollisions();
+}
+
+function removeEntry(id) {
+	entriesState = entriesState.filter((e) => e.id !== id);
+	renderEntries();
+	recomputeSummaryCollisions();
+}
+
+function normalizeHex(input) {
+	// accept: "0x..." or "..." (hex), ignore spaces, allow uppercase
+	let s = String(input || "")
+		.trim()
+		.replace(/\s+/g, "");
+	if (s.startsWith("0X")) s = "0x" + s.slice(2);
+	if (!s.startsWith("0x")) s = "0x" + s;
+	return s;
+}
+
+function parseMaskHex(hexStr) {
+	const s = normalizeHex(hexStr);
+
+	// must be 0x + 1..10 hex digits (we'll allow shorter), but must not exceed 39 bits
+	if (!/^0x[0-9a-fA-F]{1,10}$/.test(s))
+		return { ok: false, normalized: s, mask: null };
+
+	try {
+		const mask = BigInt(s);
+		if (mask < 0n) return { ok: false, normalized: s, mask: null };
+		// Ensure no bits above 38
+		const maxMask = (1n << BigInt(TOTAL_BITS)) - 1n;
+		if (mask > maxMask) return { ok: false, normalized: s, mask: null };
+		return {
+			ok: true,
+			normalized: "0x" + mask.toString(16).padStart(HEX_DIGITS, "0"),
+			mask,
+		};
+	} catch {
+		return { ok: false, normalized: s, mask: null };
+	}
+}
+
+async function pasteFromClipboardInto(id) {
+	try {
+		const text = await navigator.clipboard.readText();
+		const input = document.querySelector(`[data-entry-id="${id}"] .hex-input`);
+		if (!input) return;
+		input.value = text;
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+	} catch {
+		toast("Clipboard paste failed.", "err");
+	}
+}
+
+function renderEntries() {
+	const container = el("entries");
+	container.innerHTML = "";
+
+	entriesState.forEach((entry) => {
+		const row = document.createElement("div");
+		row.className = "entry";
+		row.setAttribute("data-entry-id", entry.id);
+
+		row.innerHTML = `
+      <div class="entry-grid">
+        <div class="field">
+          <label>Label</label>
+          <input class="text-input" type="text" value="${escapeHtml(entry.label)}" placeholder="e.g. Steven" />
+        </div>
+
+        <div class="field grow">
+          <label>Hex code</label>
+          <div class="hex-row">
+            <input class="hex-input mono" type="text" value="${escapeHtml(entry.hex)}" placeholder="0x0000000000" />
+            <button class="btn" type="button" data-action="paste">Paste</button>
+            <div class="validity" aria-label="validity">${entry.valid ? "✓" : entry.hex.trim() ? "✗" : ""}</div>
+          </div>
+          <div class="mini-hint">Accepts 0x + up to ${HEX_DIGITS} hex digits (39-bit max).</div>
+        </div>
+
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn danger" type="button" data-action="remove">Remove</button>
+        </div>
+      </div>
+    `;
+
+		// Wire events
+		const labelInput = row.querySelector(".text-input");
+		const hexInput = row.querySelector(".hex-input");
+		const pasteBtn = row.querySelector('[data-action="paste"]');
+		const removeBtn = row.querySelector('[data-action="remove"]');
+
+		labelInput.addEventListener("input", () => {
+			entry.label = labelInput.value;
+		});
+
+		hexInput.addEventListener("input", () => {
+			entry.hex = hexInput.value;
+
+			const parsed = parseMaskHex(entry.hex);
+			entry.valid = parsed.ok;
+			entry.mask = parsed.ok ? parsed.mask : null;
+
+			// normalize display to padded canonical hex once valid (less surprise: do it on blur)
+			const validity = row.querySelector(".validity");
+			validity.textContent = entry.valid ? "✓" : entry.hex.trim() ? "✗" : "";
+
+			recomputeSummaryCollisions();
+		});
+
+		hexInput.addEventListener("blur", () => {
+			const parsed = parseMaskHex(entry.hex);
+			if (parsed.ok) {
+				entry.hex = parsed.normalized;
+				hexInput.value = parsed.normalized;
+			}
+		});
+
+		pasteBtn.addEventListener("click", () => pasteFromClipboardInto(entry.id));
+		removeBtn.addEventListener("click", () => removeEntry(entry.id));
+
+		container.appendChild(row);
+	});
+
+	if (entriesState.length === 0) {
+		const empty = document.createElement("div");
+		empty.className = "empty";
+		empty.textContent = "No entries yet. Tap “Add person”.";
+		container.appendChild(empty);
+	}
+}
+
+function escapeHtml(s) {
+	return String(s ?? "")
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#039;");
+}
+
+// ---------- Summary collision computation ----------
+function recomputeSummaryCollisions() {
+	if (mode !== "summary") return;
+
+	const maxAllowed = Number(el("max-allowed").value || "0");
+
+	// collisions[i] = number of valid masks with bit i set
+	const collisions = new Array(TOTAL_BITS).fill(0);
+
+	for (const entry of entriesState) {
+		if (!entry.valid || entry.mask == null) continue;
+		const m = entry.mask;
+
+		for (let i = 0; i < TOTAL_BITS; i++) {
+			if ((m >> BigInt(i)) & 1n) collisions[i] += 1;
+		}
+	}
+
+	// Paint dates: if collisions[i] > maxAllowed, show as "selected" but red (hot)
+	const buttons = document.querySelectorAll(".date-btn");
+	for (let i = 0; i < buttons.length; i++) {
+		const c = collisions[i];
+		const hot = c > maxAllowed && c > 0;
+
+		buttons[i].classList.toggle("hot", hot);
+		buttons[i].setAttribute("data-collisions", c ? String(c) : "");
+	}
+}
+
+// ---------- Clipboard for blackout ----------
 async function copyEncoding() {
 	const text = el("encoding").value;
 	try {
 		if (navigator.clipboard && window.isSecureContext) {
 			await navigator.clipboard.writeText(text);
 		} else {
-			// fallback
 			el("encoding").focus();
 			el("encoding").select();
 			document.execCommand("copy");
@@ -157,9 +411,34 @@ async function copyEncoding() {
 	}
 }
 
+function setAllBlackout(value) {
+	if (mode !== "blackout") return;
+	const buttons = document.querySelectorAll(".date-btn");
+	for (let i = 0; i < TOTAL_BITS; i++) {
+		selected[i] = value;
+		buttons[i].setAttribute("aria-pressed", value ? "true" : "false");
+	}
+	updateBlackoutEncoding();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-	el("select-all").addEventListener("click", () => setAll(true));
-	el("clear-all").addEventListener("click", () => setAll(false));
+	// dates
+	renderDates();
+
+	// blackout actions
+	el("select-all").addEventListener("click", () => setAllBlackout(true));
+	el("clear-all").addEventListener("click", () => setAllBlackout(false));
 	el("copy").addEventListener("click", copyEncoding);
-	render();
+	updateBlackoutEncoding();
+
+	// mode toggles
+	el("mode-blackout").addEventListener("click", () => setMode("blackout"));
+	el("mode-summary").addEventListener("click", () => setMode("summary"));
+
+	// summary setup
+	fillMaxAllowed();
+	el("add-entry").addEventListener("click", () => addEntry("", ""));
+
+	// start with one entry by default (nice UX)
+	addEntry("", "");
 });
