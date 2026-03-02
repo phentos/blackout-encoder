@@ -300,7 +300,6 @@ function renderEntries() {
             <button class="btn" type="button" data-action="paste">Paste</button>
             <div class="validity" aria-label="validity">${entry.valid ? "✓" : entry.hex.trim() ? "✗" : ""}</div>
           </div>
-          <div class="mini-hint">Accepts 0x + up to ${HEX_DIGITS} hex digits (39-bit max).</div>
         </div>
 
         <div class="field">

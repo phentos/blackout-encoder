@@ -12,10 +12,13 @@
 			<header>
 				<div class="topbar">
 					<div>
-						<h1>Date Encoder</h1>
+						<h1>How to Use</h1>
 						<p class="sub">
-							Blackout: tap dates → get a hex mask. Summary: paste multiple
-							masks → see collision hot-spots.
+							Blackout: tap your dates → copy the code → paste it to your
+							coordinator
+							<label>&nbsp;</label>
+							Summary: paste the codes → set your limit → see what days exceed
+							it
 						</p>
 					</div>
 
@@ -51,6 +54,12 @@
 						<div class="field">
 							<label for="max-allowed">Maximum Allowed</label>
 							<select id="max-allowed"></select>
+							<div class="hint">
+								<span
+									>Set to the highest number you'll allow per day. For example,
+									if you're okay with 2 people missing, set this to 2.</span
+								>
+							</div>
 						</div>
 
 						<div class="field grow">
@@ -59,10 +68,6 @@
 								Add person
 							</button>
 						</div>
-					</div>
-
-					<div class="hint" style="margin-top: 6px">
-						Add one mask per person. Valid codes update collisions immediately.
 					</div>
 				</div>
 
@@ -113,7 +118,7 @@
 						</div>
 
 						<div class="box">
-							<label for="encoding">Copy-paste encoding (hex)</label>
+							<label for="encoding">Your code is...</label>
 							<div class="encoding">
 								<input
 									id="encoding"
@@ -125,11 +130,6 @@
 								<button class="btn primary" id="copy" type="button">
 									Copy
 								</button>
-							</div>
-
-							<div class="hint">
-								Format: <span class="mono">0x</span> + 10 hex digits (39-bit
-								mask). Bit 0 = Apr 2, bit 38 = Jun 27.
 							</div>
 
 							<div class="hint">
