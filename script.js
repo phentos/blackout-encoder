@@ -169,18 +169,23 @@ function setMode(nextMode) {
 
 function syncDateVisualState() {
 	const buttons = document.querySelectorAll(".date-btn");
+	const selectedCounts = document.getElementsByClassName("count selected");
+
+	let blackoutModeActive = mode === "blackout";
+	let summaryModeActive = !blackoutModeActive;
+
 	for (let i = 0; i < buttons.length; i++) {
 		const b = buttons[i];
 
 		// disable pointer interaction in summary
-		b.classList.toggle("disabled", mode === "summary");
+		b.classList.toggle("disabled", summaryModeActive);
 
 		// clear summary red state always, will be re-applied by summary logic
 		b.classList.remove("hot");
 		b.removeAttribute("data-collisions");
 
 		// keep blackout selection visuals
-		if (mode === "blackout") {
+		if (blackoutModeActive) {
 			b.setAttribute("aria-pressed", selected[i] ? "true" : "false");
 		} else {
 			// summary mode: dates are not "pressed"
@@ -188,12 +193,9 @@ function syncDateVisualState() {
 		}
 	}
 
-	// In summary mode, month counts should show collisions > max? (spec says same arrangement; doesn’t specify counts)
-	// We'll keep the "0 selected" counts, since direct selection is disabled.
-	if (mode === "summary") {
-		el("count-apr").textContent = "0";
-		el("count-may").textContent = "0";
-		el("count-jun").textContent = "0";
+	// Only show monthly selected counts in blackout
+	for (const el of selectedCounts) {
+		el.hidden = !blackoutModeActive;
 	}
 }
 
