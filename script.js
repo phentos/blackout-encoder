@@ -95,19 +95,25 @@ function makeDateButton(index) {
 }
 
 function renderDates() {
-	const apr = el("dates-apr");
-	const may = el("dates-may");
-	const jun = el("dates-jun");
+	const datesCode = getDatesParam();
 
-	apr.innerHTML = "";
-	may.innerHTML = "";
-	jun.innerHTML = "";
+	if (datesCode) {
+		// TODO: load user dates
+	} else {
+		const apr = el("dates-apr");
+		const may = el("dates-may");
+		const jun = el("dates-jun");
 
-	for (let i = 0; i < TOTAL_BITS; i++) {
-		const btn = makeDateButton(i);
-		if (DATES[i].month === "April") apr.appendChild(btn);
-		else if (DATES[i].month === "May") may.appendChild(btn);
-		else jun.appendChild(btn);
+		apr.innerHTML = "";
+		may.innerHTML = "";
+		jun.innerHTML = "";
+
+		for (let i = 0; i < TOTAL_BITS; i++) {
+			const btn = makeDateButton(i);
+			if (DATES[i].month === "April") apr.appendChild(btn);
+			else if (DATES[i].month === "May") may.appendChild(btn);
+			else jun.appendChild(btn);
+		}
 	}
 
 	// Ensure correct visuals for current mode
@@ -425,7 +431,19 @@ function setAllBlackout(value) {
 	updateBlackoutEncoding();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function getDatesParam() {
+	// ?dates=foo
+	const paramsString = window.location.search;
+	const searchParams = new URLSearchParams(paramsString);
+	const result = searchParams.get("dates");
+	console.log("dates param:", result);
+	return result;
+}
+
+/**
+ * boot boots
+ */
+function boot() {
 	// dates
 	renderDates();
 
@@ -445,4 +463,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	// start with one entry by default (nice UX)
 	addEntry("", "");
-});
+}
+
+if (document.readyState === "loading") {
+	// Loading hasn't finished yet
+	document.addEventListener("DOMContentLoaded", boot);
+} else {
+	// `DOMContentLoaded` has already fired
+	boot();
+}
